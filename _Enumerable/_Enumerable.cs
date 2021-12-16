@@ -734,6 +734,173 @@ namespace _EnumerableImplementation
             return new GroupedEnumerable<TSource, TKey, TElement, TResult>(source, keySelector, elementSelector, resultSelector, comparer);
         }
 
+        public static IEnumerable<TSource> Concat<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second)
+        {
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            return ConcatIterator<TSource>(first, second);
+        }
+
+        static IEnumerable<TSource> ConcatIterator<TSource>(IEnumerable<TSource> first, IEnumerable<TSource> second)
+        {
+            foreach (TSource element in first) yield return element;
+            foreach (TSource element in second) yield return element;
+        }
+
+        public static IEnumerable<TResult> Zip<TFirst, TSecond, TResult>(this IEnumerable<TFirst> first, IEnumerable<TSecond> second, Func<TFirst, TSecond, TResult> resultSelector)
+        {
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            if (resultSelector == null) throw new ArgumentNullException("resultSelector");
+            return ZipIterator(first, second, resultSelector);
+        }
+
+        static IEnumerable<TResult> ZipIterator<TFirst, TSecond, TResult>(IEnumerable<TFirst> first, IEnumerable<TSecond> second, Func<TFirst, TSecond, TResult> resultSelector)
+        {
+            using (IEnumerator<TFirst> e1 = first.GetEnumerator())
+            using (IEnumerator<TSecond> e2 = second.GetEnumerator())
+                while (e1.MoveNext() && e2.MoveNext())
+                    yield return resultSelector(e1.Current, e2.Current);
+        }
+
+        public static IEnumerable<TSource> _Distinct<TSource>(this IEnumerable<TSource> source)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            return _DistinctIterator<TSource>(source, null);
+        }
+
+        public static IEnumerable<TSource> _Distinct<TSource>(this IEnumerable<TSource> source, IEqualityComparer<TSource> comparer)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            return _DistinctIterator<TSource>(source, comparer);
+        }
+
+        static IEnumerable<TSource> _DistinctIterator<TSource>(IEnumerable<TSource> source, IEqualityComparer<TSource> comparer)
+        {
+            _Set<TSource> set = new _Set<TSource>(comparer);
+            foreach (TSource element in source)
+                if (set.Add(element)) yield return element;
+        }
+
+
+        public static IEnumerable<TSource> _Union<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second)
+        {
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            return _UnionIterator<TSource>(first, second, null);
+        }
+
+        public static IEnumerable<TSource> _Union<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second, IEqualityComparer<TSource> comparer)
+        {
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            return _UnionIterator<TSource>(first, second, comparer);
+        }
+
+        static IEnumerable<TSource> _UnionIterator<TSource>(IEnumerable<TSource> first, IEnumerable<TSource> second, IEqualityComparer<TSource> comparer)
+        {
+            _Set<TSource> set = new _Set<TSource>(comparer);
+            foreach (TSource element in first)
+                if (set.Add(element)) yield return element;
+            foreach (TSource element in second)
+                if (set.Add(element)) yield return element;
+        }
+
+        public static IEnumerable<TSource> _Intersect<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second)
+        {
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            return _IntersectIterator<TSource>(first, second, null);
+        }
+
+        public static IEnumerable<TSource> _Intersect<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second, IEqualityComparer<TSource> comparer)
+        {
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            return _IntersectIterator<TSource>(first, second, comparer);
+        }
+
+        static IEnumerable<TSource> _IntersectIterator<TSource>(IEnumerable<TSource> first, IEnumerable<TSource> second, IEqualityComparer<TSource> comparer)
+        {
+            _Set<TSource> set = new _Set<TSource>(comparer);
+            foreach (TSource element in second) set.Add(element);
+            foreach (TSource element in first)
+                if (set.Remove(element)) yield return element;
+        }
+
+        public static IEnumerable<TSource> Except<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second)
+        {
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            return _ExceptIterator<TSource>(first, second, null);
+        }
+
+        public static IEnumerable<TSource> _Except<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second, IEqualityComparer<TSource> comparer)
+        {
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            return _ExceptIterator<TSource>(first, second, comparer);
+        }
+
+        static IEnumerable<TSource> _ExceptIterator<TSource>(IEnumerable<TSource> first, IEnumerable<TSource> second, IEqualityComparer<TSource> comparer)
+        {
+            _Set<TSource> set = new _Set<TSource>(comparer);
+            foreach (TSource element in second) set.Add(element);
+            foreach (TSource element in first)
+                if (set.Add(element)) yield return element;
+        }
+
+        public static IEnumerable<TSource> _Reverse<TSource>(this IEnumerable<TSource> source)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            return _ReverseIterator<TSource>(source);
+        }
+
+        static IEnumerable<TSource> _ReverseIterator<TSource>(IEnumerable<TSource> source)
+        {
+            Buffer<TSource> buffer = new Buffer<TSource>(source);
+            for (int i = buffer.count - 1; i >= 0; i--) yield return buffer.items[i];
+        }
+
+        public static bool SequenceEqual<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second)
+        {
+            return SequenceEqual<TSource>(first, second, null);
+        }
+
+        public static bool SequenceEqual<TSource>(this IEnumerable<TSource> first, IEnumerable<TSource> second, IEqualityComparer<TSource> comparer)
+        {
+            if (comparer == null) comparer = EqualityComparer<TSource>.Default;
+            if (first == null) throw new ArgumentNullException("first");
+            if (second == null) throw new ArgumentNullException("second");
+            using (IEnumerator<TSource> e1 = first.GetEnumerator())
+            using (IEnumerator<TSource> e2 = second.GetEnumerator())
+            {
+                while (e1.MoveNext())
+                {
+                    if (!(e2.MoveNext() && comparer.Equals(e1.Current, e2.Current))) return false;
+                }
+                if (e2.MoveNext()) return false;
+            }
+            return true;
+        }
+
+        public static IEnumerable<TSource> _AsEnumerable<TSource>(this IEnumerable<TSource> source)
+        {
+            return source;
+        }
+
+        public static TSource[] _ToArray<TSource>(this IEnumerable<TSource> source)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            return new Buffer<TSource>(source).ToArray();
+        }
+
+        public static List<TSource> _ToList<TSource>(this IEnumerable<TSource> source)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            return new List<TSource>(source);
+        }
+
         internal abstract class OrderedEnumerable<TElement> : IOrderedEnumerable<TElement>
         {
             internal IEnumerable<TElement> _source;
@@ -986,6 +1153,124 @@ namespace _EnumerableImplementation
                 TElement[] result = new TElement[count];
                 Array.Copy(items, 0, result, 0, count);
                 return result;
+            }
+        }
+
+        internal class _Set<TElement>
+        {
+            int[] buckets;
+            Slot[] slots;
+            int count;
+            int freeList;
+            IEqualityComparer<TElement> _comparer;
+
+            public _Set() : this(null) { }
+
+            public _Set(IEqualityComparer<TElement> comparer)
+            {
+                if (comparer == null) comparer = EqualityComparer<TElement>.Default;
+                _comparer = comparer;
+                buckets = new int[7];
+                slots = new Slot[7];
+                freeList = -1;
+            }
+
+          
+            public bool Add(TElement value)
+            {
+                return !Find(value, true);
+            }
+
+           
+            public bool Contains(TElement value)
+            {
+                return Find(value, false);
+            }
+
+           
+            public bool Remove(TElement value)
+            {
+                int hashCode = InternalGetHashCode(value);
+                int bucket = hashCode % buckets.Length;
+                int last = -1;
+                for (int i = buckets[bucket] - 1; i >= 0; last = i, i = slots[i].next)
+                {
+                    if (slots[i].hashCode == hashCode && _comparer.Equals(slots[i].value, value))
+                    {
+                        if (last < 0)
+                        {
+                            buckets[bucket] = slots[i].next + 1;
+                        }
+                        else
+                        {
+                            slots[last].next = slots[i].next;
+                        }
+                        slots[i].hashCode = -1;
+                        slots[i].value = default(TElement);
+                        slots[i].next = freeList;
+                        freeList = i;
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            bool Find(TElement value, bool add)
+            {
+                int hashCode = InternalGetHashCode(value);
+                for (int i = buckets[hashCode % buckets.Length] - 1; i >= 0; i = slots[i].next)
+                {
+                    if (slots[i].hashCode == hashCode && _comparer.Equals(slots[i].value, value)) return true;
+                }
+                if (add)
+                {
+                    int index;
+                    if (freeList >= 0)
+                    {
+                        index = freeList;
+                        freeList = slots[index].next;
+                    }
+                    else
+                    {
+                        if (count == slots.Length) Resize();
+                        index = count;
+                        count++;
+                    }
+                    int bucket = hashCode % buckets.Length;
+                    slots[index].hashCode = hashCode;
+                    slots[index].value = value;
+                    slots[index].next = buckets[bucket] - 1;
+                    buckets[bucket] = index + 1;
+                }
+                return false;
+            }
+
+            void Resize()
+            {
+                int newSize = checked(count * 2 + 1);
+                int[] newBuckets = new int[newSize];
+                Slot[] newSlots = new Slot[newSize];
+                Array.Copy(slots, 0, newSlots, 0, count);
+                for (int i = 0; i < count; i++)
+                {
+                    int bucket = newSlots[i].hashCode % newSize;
+                    newSlots[i].next = newBuckets[bucket] - 1;
+                    newBuckets[bucket] = i + 1;
+                }
+                buckets = newBuckets;
+                slots = newSlots;
+            }
+
+            internal int InternalGetHashCode(TElement value)
+            {
+                return (value == null) ? 0 : _comparer.GetHashCode(value) & 0x7FFFFFFF;
+            }
+
+            internal struct Slot
+            {
+                internal int hashCode;
+                internal TElement value;
+                internal int next;
             }
         }
 

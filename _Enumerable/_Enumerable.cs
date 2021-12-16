@@ -12,7 +12,7 @@ namespace _EnumerableImplementation
 {
     public static partial class _Enumerable
     {
-        public  static IEnumerable<TSource> Where<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
+        public static IEnumerable<TSource> Where<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
         {
             if (source == null) throw new ArgumentNullException("source");
             if (predicate == null) throw new ArgumentNullException("predicate");
@@ -64,7 +64,8 @@ namespace _EnumerableImplementation
         {
             return x => predicate1(x) && predicate2(x);
         }
-        static Func<TSource, TResult> CombineSelectors<TSource, TMiddle, TResult>(Func<TSource, TMiddle> selector1, Func<TMiddle, TResult> selector2) {
+        static Func<TSource, TResult> CombineSelectors<TSource, TMiddle, TResult>(Func<TSource, TMiddle> selector1, Func<TMiddle, TResult> selector2)
+        {
             return x => selector2(selector1(x));
         }
         abstract class Iterator<TSource> : IEnumerable<TSource>, IEnumerator<TSource>
@@ -619,6 +620,386 @@ namespace _EnumerableImplementation
                 }
             }
         }
-       
+
+        public static IEnumerable<TResult> GroupJoin<TOuter, TInner, TKey, TResult>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector, Func<TOuter, IEnumerable<TInner>, TResult> resultSelector)
+        {
+            if (outer == null) throw new ArgumentNullException("outer");
+            if (inner == null) throw new ArgumentNullException("inner");
+            if (outerKeySelector == null) throw new ArgumentNullException("outerKeySelector");
+            if (innerKeySelector == null) throw new ArgumentNullException("innerKeySelector");
+            if (resultSelector == null) throw new ArgumentNullException("resultSelector");
+            return GroupJoinIterator<TOuter, TInner, TKey, TResult>(outer, inner, outerKeySelector, innerKeySelector, resultSelector, null);
+        }
+
+        public static IEnumerable<TResult> GroupJoin<TOuter, TInner, TKey, TResult>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector, Func<TOuter, IEnumerable<TInner>, TResult> resultSelector, IEqualityComparer<TKey> comparer)
+        {
+            if (outer == null) throw new ArgumentNullException("outer");
+            if (inner == null) throw new ArgumentNullException("inner");
+            if (outerKeySelector == null) throw new ArgumentNullException("outerKeySelector");
+            if (innerKeySelector == null) throw new ArgumentNullException("innerKeySelector");
+            if (resultSelector == null) throw new ArgumentNullException("resultSelector");
+            return GroupJoinIterator<TOuter, TInner, TKey, TResult>(outer, inner, outerKeySelector, innerKeySelector, resultSelector, comparer);
+        }
+
+        static IEnumerable<TResult> GroupJoinIterator<TOuter, TInner, TKey, TResult>(IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector, Func<TOuter, IEnumerable<TInner>, TResult> resultSelector, IEqualityComparer<TKey> comparer)
+        {
+            _Lookup<TKey, TInner> lookup = _Lookup<TKey, TInner>.CreateForJoin(inner, innerKeySelector, comparer);
+            foreach (TOuter item in outer)
+            {
+                yield return resultSelector(item, lookup[outerKeySelector(item)]);
+            }
+        }
+
+        public static IOrderedEnumerable<TSource> OrderBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
+        {
+            return new OrderedEnumerable<TSource, TKey>(source, keySelector, null, false);
+        }
+
+        public static IOrderedEnumerable<TSource> OrderBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, IComparer<TKey> comparer)
+        {
+            return new OrderedEnumerable<TSource, TKey>(source, keySelector, comparer, false);
+        }
+
+        public static IOrderedEnumerable<TSource> OrderByDescending<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
+        {
+            return new OrderedEnumerable<TSource, TKey>(source, keySelector, null, true);
+        }
+
+        public static IOrderedEnumerable<TSource> OrderByDescending<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, IComparer<TKey> comparer)
+        {
+            return new OrderedEnumerable<TSource, TKey>(source, keySelector, comparer, true);
+        }
+
+        public static IOrderedEnumerable<TSource> ThenBy<TSource, TKey>(this IOrderedEnumerable<TSource> source, Func<TSource, TKey> keySelector)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            return source.CreateOrderedEnumerable<TKey>(keySelector, null, false);
+        }
+
+        public static IOrderedEnumerable<TSource> ThenBy<TSource, TKey>(this IOrderedEnumerable<TSource> source, Func<TSource, TKey> keySelector, IComparer<TKey> comparer)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            return source.CreateOrderedEnumerable<TKey>(keySelector, comparer, false);
+        }
+
+        public static IOrderedEnumerable<TSource> ThenByDescending<TSource, TKey>(this IOrderedEnumerable<TSource> source, Func<TSource, TKey> keySelector)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            return source.CreateOrderedEnumerable<TKey>(keySelector, null, true);
+        }
+
+        public static IOrderedEnumerable<TSource> ThenByDescending<TSource, TKey>(this IOrderedEnumerable<TSource> source, Func<TSource, TKey> keySelector, IComparer<TKey> comparer)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            return source.CreateOrderedEnumerable<TKey>(keySelector, comparer, true);
+        }
+
+        public static IEnumerable<IGrouping<TKey, TSource>> GroupBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
+        {
+            return new GroupedEnumerable<TSource, TKey, TSource>(source, keySelector, IdentityFunction<TSource>.Instance, null);
+        }
+
+        public static IEnumerable<IGrouping<TKey, TSource>> GroupBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, IEqualityComparer<TKey> comparer)
+        {
+            return new GroupedEnumerable<TSource, TKey, TSource>(source, keySelector, IdentityFunction<TSource>.Instance, comparer);
+        }
+
+        public static IEnumerable<IGrouping<TKey, TElement>> GroupBy<TSource, TKey, TElement>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector)
+        {
+            return new GroupedEnumerable<TSource, TKey, TElement>(source, keySelector, elementSelector, null);
+        }
+
+        public static IEnumerable<IGrouping<TKey, TElement>> GroupBy<TSource, TKey, TElement>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector, IEqualityComparer<TKey> comparer)
+        {
+            return new GroupedEnumerable<TSource, TKey, TElement>(source, keySelector, elementSelector, comparer);
+        }
+
+        public static IEnumerable<TResult> GroupBy<TSource, TKey, TResult>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TKey, IEnumerable<TSource>, TResult> resultSelector)
+        {
+            return new GroupedEnumerable<TSource, TKey, TSource, TResult>(source, keySelector, IdentityFunction<TSource>.Instance, resultSelector, null);
+        }
+
+        public static IEnumerable<TResult> GroupBy<TSource, TKey, TElement, TResult>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector, Func<TKey, IEnumerable<TElement>, TResult> resultSelector)
+        {
+            return new GroupedEnumerable<TSource, TKey, TElement, TResult>(source, keySelector, elementSelector, resultSelector, null);
+        }
+
+        public static IEnumerable<TResult> GroupBy<TSource, TKey, TResult>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TKey, IEnumerable<TSource>, TResult> resultSelector, IEqualityComparer<TKey> comparer)
+        {
+            return new GroupedEnumerable<TSource, TKey, TSource, TResult>(source, keySelector, IdentityFunction<TSource>.Instance, resultSelector, comparer);
+        }
+
+        public static IEnumerable<TResult> GroupBy<TSource, TKey, TElement, TResult>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector, Func<TKey, IEnumerable<TElement>, TResult> resultSelector, IEqualityComparer<TKey> comparer)
+        {
+            return new GroupedEnumerable<TSource, TKey, TElement, TResult>(source, keySelector, elementSelector, resultSelector, comparer);
+        }
+
+        internal abstract class OrderedEnumerable<TElement> : IOrderedEnumerable<TElement>
+        {
+            internal IEnumerable<TElement> _source;
+
+            public IEnumerator<TElement> GetEnumerator()
+            {
+                Buffer<TElement> buffer = new Buffer<TElement>(_source);
+                if (buffer.count > 0)
+                {
+                    EnumerableSorter<TElement> sorter = GetEnumerableSorter(null);
+                    int[] map = sorter.Sort(buffer.items, buffer.count);
+                    sorter = null;
+                    for (int i = 0; i < buffer.count; i++) yield return buffer.items[map[i]];
+                }
+            }
+
+            internal abstract EnumerableSorter<TElement> GetEnumerableSorter(EnumerableSorter<TElement> next);
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            IOrderedEnumerable<TElement> IOrderedEnumerable<TElement>.CreateOrderedEnumerable<TKey>(Func<TElement, TKey> keySelector, IComparer<TKey> comparer, bool descending)
+            {
+                OrderedEnumerable<TElement, TKey> result = new OrderedEnumerable<TElement, TKey>(_source, keySelector, comparer, descending);
+                result._parent = this;
+                return result;
+            }
+        }
+
+        internal class GroupedEnumerable<TSource, TKey, TElement, TResult> : IEnumerable<TResult>
+        {
+            IEnumerable<TSource> source;
+            Func<TSource, TKey> keySelector;
+            Func<TSource, TElement> elementSelector;
+            IEqualityComparer<TKey> comparer;
+            Func<TKey, IEnumerable<TElement>, TResult> resultSelector;
+
+            public GroupedEnumerable(IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector, Func<TKey, IEnumerable<TElement>, TResult> resultSelector, IEqualityComparer<TKey> comparer)
+            {
+                if (source == null) throw new ArgumentNullException("source");
+                if (keySelector == null) throw new ArgumentNullException("keySelector");
+                if (elementSelector == null) throw new ArgumentNullException("elementSelector");
+                if (resultSelector == null) throw new ArgumentNullException("resultSelector");
+                this.source = source;
+                this.keySelector = keySelector;
+                this.elementSelector = elementSelector;
+                this.comparer = comparer;
+                this.resultSelector = resultSelector;
+            }
+
+            public IEnumerator<TResult> GetEnumerator()
+            {
+                _Lookup<TKey, TElement> lookup = _Lookup<TKey, TElement>.Create<TSource>(source, keySelector, elementSelector, comparer);
+                return lookup.ApplyResultSelector(resultSelector).GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+        }
+
+        internal class GroupedEnumerable<TSource, TKey, TElement> : IEnumerable<IGrouping<TKey, TElement>>
+        {
+            IEnumerable<TSource> _source;
+            Func<TSource, TKey> _keySelector;
+            Func<TSource, TElement> _elementSelector;
+            IEqualityComparer<TKey> _comparer;
+
+            public GroupedEnumerable(IEnumerable<TSource> source, Func<TSource, TKey> keySelector, Func<TSource, TElement> elementSelector, IEqualityComparer<TKey> comparer)
+            {
+                if (source == null) throw new ArgumentNullException("source");
+                if (keySelector == null) throw new ArgumentNullException("keySelector");
+                if (elementSelector == null) throw new ArgumentNullException("elementSelector");
+                _source = source;
+                _keySelector = keySelector;
+                _elementSelector = elementSelector;
+                _comparer = comparer;
+            }
+
+            public IEnumerator<IGrouping<TKey, TElement>> GetEnumerator()
+            {
+                return _Lookup<TKey, TElement>.Create<TSource>(_source, _keySelector, _elementSelector, _comparer).GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+        }
+
+        internal class OrderedEnumerable<TElement, TKey> : OrderedEnumerable<TElement>
+        {
+            internal OrderedEnumerable<TElement> _parent;
+            internal Func<TElement, TKey> _keySelector;
+            internal IComparer<TKey> _comparer;
+            internal bool _descending;
+
+            internal OrderedEnumerable(IEnumerable<TElement> source, Func<TElement, TKey> keySelector, IComparer<TKey> comparer, bool descending)
+            {
+                if (source == null) throw new ArgumentNullException("source");
+                if (keySelector == null) throw new ArgumentNullException("keySelector");
+                _source = source;
+                _parent = null;
+                _keySelector = keySelector;
+                _comparer = comparer != null ? comparer : Comparer<TKey>.Default;
+                _descending = descending;
+            }
+
+            internal override EnumerableSorter<TElement> GetEnumerableSorter(EnumerableSorter<TElement> next)
+            {
+                EnumerableSorter<TElement> sorter = new EnumerableSorter<TElement, TKey>(_keySelector, _comparer, _descending, next);
+                if (_parent != null) sorter = _parent.GetEnumerableSorter(sorter);
+                return sorter;
+            }
+        }
+
+        internal abstract class EnumerableSorter<TElement>
+        {
+            internal abstract void ComputeKeys(TElement[] elements, int count);
+
+            internal abstract int CompareKeys(int index1, int index2);
+
+            internal int[] Sort(TElement[] elements, int count)
+            {
+                ComputeKeys(elements, count);
+                int[] map = new int[count];
+                for (int i = 0; i < count; i++) map[i] = i;
+                QuickSort(map, 0, count - 1);
+                return map;
+            }
+
+            void QuickSort(int[] map, int left, int right)
+            {
+                do
+                {
+                    int i = left;
+                    int j = right;
+                    int x = map[i + ((j - i) >> 1)];
+                    do
+                    {
+                        while (i < map.Length && CompareKeys(x, map[i]) > 0) i++;
+                        while (j >= 0 && CompareKeys(x, map[j]) < 0) j--;
+                        if (i > j) break;
+                        if (i < j)
+                        {
+                            int temp = map[i];
+                            map[i] = map[j];
+                            map[j] = temp;
+                        }
+                        i++;
+                        j--;
+                    } while (i <= j);
+                    if (j - left <= right - i)
+                    {
+                        if (left < j) QuickSort(map, left, j);
+                        left = i;
+                    }
+                    else
+                    {
+                        if (i < right) QuickSort(map, i, right);
+                        right = j;
+                    }
+                } while (left < right);
+            }
+        }
+
+        internal class EnumerableSorter<TElement, TKey> : EnumerableSorter<TElement>
+        {
+            internal Func<TElement, TKey> _keySelector;
+            internal IComparer<TKey> _comparer;
+            internal bool _descending;
+            internal EnumerableSorter<TElement> _next;
+            internal TKey[] keys;
+
+            internal EnumerableSorter(Func<TElement, TKey> keySelector, IComparer<TKey> comparer, bool descending, EnumerableSorter<TElement> next)
+            {
+                _keySelector = keySelector;
+                _comparer = comparer;
+                _descending = descending;
+                _next = next;
+            }
+
+            internal override void ComputeKeys(TElement[] elements, int count)
+            {
+                keys = new TKey[count];
+                for (int i = 0; i < count; i++) keys[i] = _keySelector(elements[i]);
+                if (_next != null) _next.ComputeKeys(elements, count);
+            }
+
+            internal override int CompareKeys(int index1, int index2)
+            {
+                int c = _comparer.Compare(keys[index1], keys[index2]);
+                if (c == 0)
+                {
+                    if (_next == null) return index1 - index2;
+                    return _next.CompareKeys(index1, index2);
+                }
+                return _descending ? -c : c;
+            }
+        }
+
+        struct Buffer<TElement>
+        {
+            internal TElement[] items;
+            internal int count;
+
+            internal Buffer(IEnumerable<TElement> source)
+            {
+                TElement[] items = null;
+                int count = 0;
+                ICollection<TElement> collection = source as ICollection<TElement>;
+                if (collection != null)
+                {
+                    count = collection.Count;
+                    if (count > 0)
+                    {
+                        items = new TElement[count];
+                        collection.CopyTo(items, 0);
+                    }
+                }
+                else
+                {
+                    foreach (TElement item in source)
+                    {
+                        if (items == null)
+                        {
+                            items = new TElement[4];
+                        }
+                        else if (items.Length == count)
+                        {
+                            TElement[] newItems = new TElement[checked(count * 2)];
+                            Array.Copy(items, 0, newItems, 0, count);
+                            items = newItems;
+                        }
+                        items[count] = item;
+                        count++;
+                    }
+                }
+                this.items = items;
+                this.count = count;
+            }
+
+            internal TElement[] ToArray()
+            {
+                if (count == 0) return new TElement[0];
+                if (items.Length == count) return items;
+                TElement[] result = new TElement[count];
+                Array.Copy(items, 0, result, 0, count);
+                return result;
+            }
+        }
+
+        internal class IdentityFunction<TElement>
+        {
+            public static Func<TElement, TElement> Instance
+            {
+                get { return x => x; }
+            }
+        }
+
+        public interface IOrderedEnumerable<TElement> : IEnumerable<TElement>
+        {
+            IOrderedEnumerable<TElement> CreateOrderedEnumerable<TKey>(Func<TElement, TKey> keySelector, IComparer<TKey> comparer, bool descending);
+        }
     }
 }

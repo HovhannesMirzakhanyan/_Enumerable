@@ -10,6 +10,7 @@ namespace _EnumerableImplementation
     {
         static void Main(string[] args)
         {
+            
         }
     }
 }

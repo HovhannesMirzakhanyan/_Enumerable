@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 
+
+
 namespace _EnumerableImplementation
 {
     public static partial class _Enumerable
@@ -563,5 +565,60 @@ namespace _EnumerableImplementation
                 if (yielding) yield return element;
             }
         }
+
+        public static IEnumerable<TSource> SkipWhile<TSource>(this IEnumerable<TSource> source, Func<TSource, int, bool> predicate)
+        {
+            if (source == null) throw new ArgumentNullException("source");
+            if (predicate == null) throw new ArgumentNullException("predicate");
+            return SkipWhileIterator<TSource>(source, predicate);
+        }
+
+        static IEnumerable<TSource> SkipWhileIterator<TSource>(IEnumerable<TSource> source, Func<TSource, int, bool> predicate)
+        {
+            int index = -1;
+            bool yielding = false;
+            foreach (TSource element in source)
+            {
+                checked { index++; }
+                if (!yielding && !predicate(element, index)) yielding = true;
+                if (yielding) yield return element;
+            }
+        }
+        public static IEnumerable<TResult> Join<TOuter, TInner, TKey, TResult>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector, Func<TOuter, TInner, TResult> resultSelector)
+        {
+            if (outer == null) throw new ArgumentNullException("outer");
+            if (inner == null) throw new ArgumentNullException("inner");
+            if (outerKeySelector == null) throw new ArgumentNullException("outerKeySelector");
+            if (innerKeySelector == null) throw new ArgumentNullException("innerKeySelector");
+            if (resultSelector == null) throw new ArgumentNullException("resultSelector");
+            return JoinIterator<TOuter, TInner, TKey, TResult>(outer, inner, outerKeySelector, innerKeySelector, resultSelector, null);
+        }
+
+        public static IEnumerable<TResult> Join<TOuter, TInner, TKey, TResult>(this IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector, Func<TOuter, TInner, TResult> resultSelector, IEqualityComparer<TKey> comparer)
+        {
+            if (outer == null) throw new ArgumentNullException("outer");
+            if (inner == null) throw new ArgumentNullException("inner");
+            if (outerKeySelector == null) throw new ArgumentNullException("outerKeySelector");
+            if (innerKeySelector == null) throw new ArgumentNullException("innerKeySelector");
+            if (resultSelector == null) throw new ArgumentNullException("resultSelector");
+            return JoinIterator<TOuter, TInner, TKey, TResult>(outer, inner, outerKeySelector, innerKeySelector, resultSelector, comparer);
+        }
+
+        static IEnumerable<TResult> JoinIterator<TOuter, TInner, TKey, TResult>(IEnumerable<TOuter> outer, IEnumerable<TInner> inner, Func<TOuter, TKey> outerKeySelector, Func<TInner, TKey> innerKeySelector, Func<TOuter, TInner, TResult> resultSelector, IEqualityComparer<TKey> comparer)
+        {
+            _Lookup<TKey, TInner> lookup = _Lookup<TKey, TInner>.CreateForJoin(inner, innerKeySelector, comparer);
+            foreach (TOuter item in outer)
+            {
+                _Lookup<TKey, TInner>.Grouping g = lookup.GetGrouping(outerKeySelector(item), false);
+                if (g != null)
+                {
+                    for (int i = 0; i < g.count; i++)
+                    {
+                        yield return resultSelector(item, g.elements[i]);
+                    }
+                }
+            }
+        }
+       
     }
 }
